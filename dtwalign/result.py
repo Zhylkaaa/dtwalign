@@ -19,9 +19,9 @@ class DtwResult():
         Normalized alignment distance.
 
     """
-    def __init__(self, cumsum_matrix, path, window, pattern):
+    def __init__(self, cumsum_matrix, direction_matrix, path, window, pattern):
         self.cumsum_matrix = cumsum_matrix
-
+        self.direction_matrix = direction_matrix
         if path is None:
             self.dist_only = True
         else:

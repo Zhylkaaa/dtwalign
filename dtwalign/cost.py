@@ -11,6 +11,7 @@ def _calc_cumsum_matrix_jit(X, w_list, p_ar, open_begin):
     len_x, len_y = X.shape
     # cumsum matrix
     D = np.ones((len_x, len_y), dtype=np.float64) * np.inf
+    D_dir = np.full_like(D, -1, dtype=np.int32)
 
     if open_begin:
         X = np.vstack((np.zeros((1, X.shape[1])), X))
@@ -60,7 +61,9 @@ def _calc_cumsum_matrix_jit(X, w_list, p_ar, open_begin):
                 + step_cost.sum()
 
         min_cost = pattern_cost.min()
+        min_step = np.argmin(pattern_cost)
         if min_cost != np.inf:
             D[i, j] = min_cost
+            D_dir[i, j] = min_step
 
-    return D
+    return D, D_dir

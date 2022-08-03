@@ -186,17 +186,17 @@ class Symmetric2(BasePattern):
     label = "symmetric2"
     pattern_info = [
         dict(
-            indices=[(-1, 0), (0, 0)],
-            weights=[1]
-        ),
-        dict(
             indices=[(-1, -1), (0, 0)],
             weights=[2]
         ),
         dict(
             indices=[(0, -1), (0, 0)],
             weights=[1]
-        )
+        ),
+        dict(
+            indices=[(-1, 0), (0, 0)],
+            weights=[1]
+        ),
     ]
     normalize_guide = "N+M"
 

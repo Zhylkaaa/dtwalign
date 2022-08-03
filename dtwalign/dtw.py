@@ -166,7 +166,7 @@ def dtw_low(X, window, pattern, dist_only=False,
             raise ValueError("open-end alignment requires normalizable step pattern")
 
     # compute cumsum distance matrix
-    D = _calc_cumsum_matrix_jit(X, window.list, pattern.array, open_begin)
+    D, D_dir = _calc_cumsum_matrix_jit(X, window.list, pattern.array, open_begin)
     # get alignment distance
     dist, normalized_dist, last_idx = _get_alignment_distance(D, pattern,
         open_begin, open_end)
@@ -177,13 +177,13 @@ def dtw_low(X, window, pattern, dist_only=False,
             D = D[1:, :]
     else:
         # backtrack to obtain warping path
-        path = _backtrack_jit(D, pattern.array, last_idx)
+        path = _backtrack_jit(D_dir, pattern.array, last_idx)
         if open_begin:
             D = D[1:, :]
             path = path[1:, :]
             path[:, 0] -= 1
 
-    result = DtwResult(D, path, window, pattern)
+    result = DtwResult(D, D_dir, path, window, pattern)
     # set distance properties
     result.distance = dist
     result.normalized_distance = normalized_dist
