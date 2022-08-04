@@ -10,7 +10,7 @@ def _calc_cumsum_matrix_jit(X, w_list, p_ar, open_begin):
     """Fast implementation by numba.jit."""
     batch_size, len_x, len_y = X.shape
     # cumsum matrix
-    D = np.ones((batch_size, len_x, len_y), dtype=np.float32) * np.inf
+    D = np.ones((batch_size, len_x, len_y), dtype=np.float64) * np.inf
     D_dir = np.full_like(D, -1, dtype=np.int32)
 
     if open_begin:
@@ -23,9 +23,9 @@ def _calc_cumsum_matrix_jit(X, w_list, p_ar, open_begin):
     # max pattern length
     max_pattern_len = p_ar.shape[1]
     # pattern cost
-    pattern_cost = np.zeros((batch_size, num_pattern), dtype=np.float32)
+    pattern_cost = np.zeros((batch_size, num_pattern), dtype=np.float64)
     # step cost
-    step_cost = np.zeros((batch_size, max_pattern_len), dtype=np.float32)
+    step_cost = np.zeros((batch_size, max_pattern_len), dtype=np.float64)
     # number of cells
     num_cells = w_list.shape[0]
     D[:, 0, 0] = X[:, 0, 0]
