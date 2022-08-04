@@ -2,7 +2,7 @@
 """Backtracking implementation."""
 
 import numpy as np
-from numba import jit
+from numba import jit, prange
 
 
 # @jit(nopython=True)
@@ -58,28 +58,35 @@ from numba import jit
 #     return path[::-1]
 
 
-@jit(nopython=True)
+@jit(nopython=True, parallel=True)
 def _backtrack_jit(D_dir, p_ar, last_idx=-1):
-    i, j = D_dir.shape
+    batch_size, i, j = D_dir.shape
     i -= 1
     if last_idx == -1:
         j -= 1
     else:
         j = last_idx
-    i = int(i)
-    j = int(j)
     
-    path = np.array(((i, j),), dtype=np.int64)
-    while True:
-        if i == 0 and j == 0: break
-        step = D_dir[i, j]
-        if step == -1: break
+    paths = np.full((batch_size, i+j+2, 2), -1, dtype=np.int64)
+    for tidx in prange(batch_size):
+        i_loc, j_loc = D_dir.shape[1:]
+        i_loc -= 1
+        if last_idx == -1:
+            j_loc -= 1
+        else:
+            j_loc = last_idx
+        path = np.array(((i_loc, j_loc),), dtype=np.int64)
+        while True:
+            if i_loc == 0 and j_loc == 0: break
+            step = D_dir[tidx, i_loc, j_loc]
+            if step == -1: break
 
-        i += int(p_ar[step, 0, 0])
-        j += int(p_ar[step, 0, 1])
+            i_loc += int(p_ar[step, 0, 0])
+            j_loc += int(p_ar[step, 0, 1])
 
-        path = np.vstack((path, np.array(((i, j),))))
-    return np.flipud(path)
+            path = np.vstack((path, np.array(((i_loc, j_loc),))))
+        paths[tidx, :path.shape[0]] = np.flipud(path)
+    return paths
 
 
 @jit(nopython=True)

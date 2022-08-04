@@ -33,7 +33,7 @@ from .result import DtwResult
 from .distance import _get_alignment_distance
 
 
-def dtw(x, y, dist="euclidean", window_type="none", window_size=None,
+def dtw(X, Y, dist="euclidean", window_type="none", window_size=None,
     step_pattern="symmetric2", dist_only=False, open_begin=False, open_end=False):
     """Perform dtw.
 
@@ -79,25 +79,24 @@ def dtw(x, y, dist="euclidean", window_type="none", window_size=None,
         Result obj.
 
     """
-    len_x = x.shape[0]; len_y = y.shape[0]
-    # if 1D array, convert to 2D array
-    if x.ndim == 1:
-        x = np.array(x)
-        x = x[:, np.newaxis]
-    if y.ndim == 1:
-        y = np.array(y)
-        y = y[:, np.newaxis]
+    if len(X.shape) != 2 or len(Y.shape) != 2:
+        raise ValueError('Inputs should be of shape {batch_size x example_len}')
+    if X.shape[0] != Y.shape[0]:
+        raise ValueError(f'Found mismatch in example count in X and Y first dimention. '
+                          '{X.shape[0]} != {Y.shape[0]}')
+    batch_size, len_x = X.shape; len_y = Y.shape[1]
 
     # get pair-wise cost matrix
     if type(dist) == str:
         # scipy
-        X = cdist(x, y, metric=dist)
+        X = np.stack([cdist(x[:, np.newaxis], y[:, np.newaxis], metric=dist) for x, y in zip(X, Y)])
     else:
         # user defined metric
         window = _get_window(window_type, window_size, len_x, len_y)
-        X = np.ones([len_x, len_y]) * np.inf
-        for i, j in window.list:
-            X[i, j] = dist(x[i, :], y[j, :])
+        X = np.ones([batch_size, len_x, len_y]) * np.inf
+        for idx, (x, y) in enumerate(zip(X, Y)):
+            for i, j in window.list:
+                X[idx, i, j] = dist(x[i, :], y[j, :])
 
     return dtw_from_distance_matrix(X, window_type, window_size, step_pattern,
         dist_only, open_begin, open_end)
@@ -109,7 +108,7 @@ def dtw_from_distance_matrix(X, window_type="none", window_size=None,
 
     Parameters
     ----------
-    X : 2D array
+    X : 3D array
         Pre-computed pair-wise distance matrix.
 
     others : 
@@ -117,11 +116,11 @@ def dtw_from_distance_matrix(X, window_type="none", window_size=None,
 
     Returns
     -------
-    dtwalign.result.DtwResult
-        Result obj.
+    List[dtwalign.result.DtwResult]
+        List[Result obj.]
 
     """
-    len_x, len_y = X.shape
+    batch_size, len_x, len_y = X.shape
     window = _get_window(window_type, window_size, len_x, len_y)
     pattern = _get_pattern(step_pattern)
     return dtw_low(X, window, pattern, dist_only, open_begin, open_end)
@@ -133,8 +132,8 @@ def dtw_low(X, window, pattern, dist_only=False,
 
     Parameters
     ----------
-    X : 2D array
-        Pair-wise distance matrix.
+    X : 3D array
+        Pair-wise distance matrix for each example.
 
     window : dtwalign.window.BaseWindow object
         window object.
@@ -147,8 +146,8 @@ def dtw_low(X, window, pattern, dist_only=False,
 
     Returns
     -------
-    dtwalign.result.DtwResult
-        Result obj.
+    List[dtwalign.result.DtwResult]
+        List[Result obj].
 
     """
     # validation
@@ -168,27 +167,28 @@ def dtw_low(X, window, pattern, dist_only=False,
     # compute cumsum distance matrix
     D, D_dir = _calc_cumsum_matrix_jit(X, window.list, pattern.array, open_begin)
     # get alignment distance
-    dist, normalized_dist, last_idx = _get_alignment_distance(D, pattern,
-        open_begin, open_end)
+    #dist, normalized_dist, last_idx = _get_alignment_distance(D, pattern,
+    #    open_begin, open_end)
 
-    if dist_only:
-        path = None
-        if open_begin:
-            D = D[1:, :]
-    else:
-        # backtrack to obtain warping path
-        path = _backtrack_jit(D_dir, pattern.array, last_idx)
-        if open_begin:
-            D = D[1:, :]
-            path = path[1:, :]
-            path[:, 0] -= 1
-
-    result = DtwResult(D, D_dir, path, window, pattern)
+    # TODO: restore full functionality. (now temporeraly disabled dist only)
+    # if dist_only:
+    #     path = None
+    #     if open_begin:
+    #         D = D[1:, :]
+    # else:
+    # backtrack to obtain warping path
+    last_idx = -1
+    paths = _backtrack_jit(D_dir, pattern.array, last_idx)
+    if open_begin:
+        D = D[:, 1:, :]
+        paths = paths[:, 1:, :]
+        paths[:, :, 0] -= 1
+    results = [DtwResult(d, d_dir, path, window, pattern) for d, d_dir, path in zip(D, D_dir, paths)]
     # set distance properties
-    result.distance = dist
-    result.normalized_distance = normalized_dist
+    #result.distance = dist
+    #result.normalized_distance = normalized_dist
 
-    return result
+    return results
 
 
 def _get_window(window_type, window_size, len_x, len_y):
