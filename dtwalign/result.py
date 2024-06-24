@@ -26,7 +26,7 @@ class DtwResult():
             self.dist_only = True
         else:
             self.dist_only = False
-            self.path = path
+            self.path = path[path[:, 0] > -1] # remove padding
 
         self._window = window
         self._pattern = pattern
